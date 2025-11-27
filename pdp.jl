@@ -508,7 +508,7 @@ function tem_caminho_negativo(rotulos)
     return false
 end
 
-function A_final(C, task, Wu, num_caminhoes, r)
+function A_final(C, task, Wu, num_caminhoes, r; MAXIT=10)
     rotulos = [[Label(-1.0, [0.0], [0])]]
 
     L = maximum(Wu[:, 2]) # correspondendo ao limite superior para o recurso de tempo
@@ -520,7 +520,7 @@ function A_final(C, task, Wu, num_caminhoes, r)
     display(Wu)
     #L = maximum(Wu[:, 2]) # correspondendo ao limite superior para o recurso de tempo
 
-    n = r + 2 #criando varariavel altificial
+    n = r + 2 #criando varariavel artificial
      
     W = Array{Float64}(undef, n, 2)
     W[1,:] = [0, L]
@@ -553,58 +553,77 @@ function A_final(C, task, Wu, num_caminhoes, r)
     salvaguarda = 1
     base_inicial = copy(base)
     solucao = [] 
-        while !eh_otima && salvaguarda < 10 #tem_caminho_negativo(rotulos[end])
-            salvaguarda += 1
-            # Número de colunas e linhas (criar a matriz c)
-            (m, n) = size(A)
-            # Encontrar índices das colunas fora da base
-            vnb = setdiff(collect(1:n), base)  # Colunas que não estão na base
-            # Criar c automaticamente
-            c = zeros(n)  # Inicializa um vetor de zeros com tamanho n
-            for j in vnb
-                c[j] = -sum(A[2:end, j])  # Soma dos elementos da coluna sem a primeira linha, com sinal negativo
+
+    while !eh_otima && salvaguarda < MAXIT #tem_caminho_negativo(rotulos[end])
+
+        println("""
+
+        ==============
+        Iteração $salvaguarda
+        ==============
+        """
+        )
+
+        salvaguarda += 1
+        # Número de colunas e linhas (criar a matriz c)
+        (m, n) = size(A)
+        # Encontrar índices das colunas fora da base
+        vnb = setdiff(collect(1:n), base)  # Colunas que não estão na base
+        # Criar c automaticamente
+        c = zeros(n)  # Inicializa um vetor de zeros com tamanho n
+        for j in vnb
+            c[j] = -sum(A[2:end, j])  # Soma dos elementos da coluna sem a primeira linha, com sinal negativo
+        end
+
+        #simplex 
+        solucao, custo_reduzido = simplexrev(A,b,c,base)
+        
+        base.=base_inicial
+        
+        #ESPPRC
+        S, T, Lambda = data(n_original, L, custo_reduzido[base_inicial], C, task)
+        # display(T)
+        # display(L)
+        # display(C)
+        # display(S)
+        rotulos, melhor = ESPPRC(S, T, L, W, Lambda, n_original)
+        #println("ESPPRC devolveu")
+        #for i in rotulos[end]
+            #   println("\t$i")
+        #end
+        #println()
+
+        eh_otima=true
+        # Encontrar todos os lambdas com C < 0
+        lambdas_negativos = [lambda for lambda in rotulos[end] if lambda.C < 0]
+
+        println("\tRotulos a serem adicionados:")
+        for λ in lambdas_negativos
+
+            println("\t$λ")
+
+        end
+
+        if !isempty(lambdas_negativos)
+            eh_otima = false
+
+            valores_coluna = [lambda.V[1:end-1] for lambda in lambdas_negativos]
+            valores_coluna = [map(x -> isinf(x) ? 0.0 : 1.0, v) for v in valores_coluna]
+
+            # Adiciona a coluna 
+            for nova_coluna in valores_coluna
+            #     if all(!all(A[:, j] .== nova_coluna) for j in 1:size(A, 2))
+                A = hcat(A, nova_coluna)
+            #     end
             end
 
-            #simplex 
-            solucao, custo_reduzido = simplexrev(A,b,c,base)
-            
-            base.=base_inicial
-            
-            #ESPPRC
-            S, T, Lambda = data(n_original, L, custo_reduzido[base_inicial], C, task)
-            # display(T)
-            # display(L)
-            # display(C)
-            # display(S)
-            rotulos, melhor = ESPPRC(S, T, L, W, Lambda, n_original)
-            #println("ESPPRC devolveu")
-            #for i in rotulos[end]
-             #   println("\t$i")
-            #end
-            #println()
+            #display(A)
+        end
 
-            eh_otima=true
-            # Encontrar todos os lambdas com C < 0
-            lambdas_negativos = [lambda for lambda in rotulos[end] if lambda.C < 0]
+    end 
 
-            if !isempty(lambdas_negativos)
-                eh_otima = false
-
-                valores_coluna = [lambda.V[1:end-1] for lambda in lambdas_negativos]
-                valores_coluna = [map(x -> isinf(x) ? 0.0 : 1.0, v) for v in valores_coluna]
-
-                # Adiciona a coluna 
-                for nova_coluna in valores_coluna
-                #     if all(!all(A[:, j] .== nova_coluna) for j in 1:size(A, 2))
-                    A = hcat(A, nova_coluna)
-                #     end
-                end
-
-                #display(A)
-            end
-
-        end 
     return A, solucao, g
+
 end
 
 function rota_da_solucao(solucao, A, g)
