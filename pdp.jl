@@ -74,7 +74,7 @@ function ESPPRC(S, T, L, W, Λ, n)
     
     j = 1
     
-    println("ESPPRC: L=$L")
+    #println("ESPPRC: L=$L")
 
     E = zeros(n)
 
@@ -84,13 +84,13 @@ function ESPPRC(S, T, L, W, Λ, n)
     
     changed = false
     
-    println("ESPPRC: n = $n")
+    #println("ESPPRC: n = $n")
 
     while sum(E) != 0
         
         if E[i] != 0
 
-            println("EPPRC: Analisando $i")
+            #println("EPPRC: Analisando $i")
                 
             for k in 0:(n-2) # i é o vértice que estamos tratando e k varia ao longo de 0 a n-2
                 
@@ -100,15 +100,15 @@ function ESPPRC(S, T, L, W, Λ, n)
 
                     if λ.V[j] == 0 # se a extensão for possível, fazemos isso
 
-                        println("ESPPRC: extensao para = $j")
+                        #println("ESPPRC: extensao para = $j")
                         
                         F = union(F, Set([Extend(λ, i, j, S, T, L, W)]))
 
-                        for f in F
+                        #for f in F
 
-                            println("\t $f")
+                            #println("\t $f")
 
-                        end
+                        #end
 
                     end
                     
@@ -186,8 +186,8 @@ function Extend(λ_i, i, j, S, T, L, W)
     
     for k in 1:n
         
-        println("\tEXTEND: V[$k]=$(λ_j.V[k])")
-        println("\tEXTEND: $k - $((λ_j.R[1] + T[j,k] > W[k,2])), $((λ_j.R[1] + T[j,k] < W[k,1] - 5)), $(((λ_j.R[1] + T[j,k]) > L))")
+        #println("\tEXTEND: V[$k]=$(λ_j.V[k])")
+        #println("\tEXTEND: $k - $((λ_j.R[1] + T[j,k] > W[k,2])), $((λ_j.R[1] + T[j,k] < W[k,1] - 5)), $(((λ_j.R[1] + T[j,k]) > L))")
         if λ_j.V[k] == 0
 
             # Levamos em consideração o tempo que um veículo teria que esperar para concluir duas tarefas consecutivas
@@ -409,7 +409,7 @@ S, T, L, W, Lambda, n - saída que será a entrada correspondente do ESPPRC (ver
 """
 function data(n, L, dual, C, task)
 
-    println("Data")
+    #println("Data")
  
     T = zeros(n,n)
 
@@ -446,7 +446,7 @@ function data(n, L, dual, C, task)
 
     end
 
-    display(T)
+    #display(T)
 
     Lambda = Array{Any,1}(undef, n)
 
@@ -513,12 +513,20 @@ function A_final(C, task, Wu, num_caminhoes, r)
 
     L = maximum(Wu[:, 2]) # correspondendo ao limite superior para o recurso de tempo
     display(L)
+    display(C)
+    println("matriz task")
+    display(task)
+    println("matriz Wu")
+    display(Wu)
+    #L = maximum(Wu[:, 2]) # correspondendo ao limite superior para o recurso de tempo
+
     n = r + 2 #criando varariavel altificial
      
     W = Array{Float64}(undef, n, 2)
     W[1,:] = [0, L]
     W[2:end-1,:] .= Wu
-    W[7, :] = [0, L]
+    W[end, :] = [0, L]
+    println("matriz W")
     display(W)
     #matriz A
     g = r + 1
@@ -541,11 +549,12 @@ function A_final(C, task, Wu, num_caminhoes, r)
     #o comando collect transforma um intervalo em vetor,matriz
 
     #L = maximum(W) # correspondendo ao limite superior para o recurso de tempo
-    
+    eh_otima = false
+    salvaguarda = 1
     base_inicial = copy(base)
     solucao = [] 
-        while tem_caminho_negativo(rotulos[end])
-
+        while !eh_otima && salvaguarda < 10 #tem_caminho_negativo(rotulos[end])
+            salvaguarda += 1
             # Número de colunas e linhas (criar a matriz c)
             (m, n) = size(A)
             # Encontrar índices das colunas fora da base
@@ -560,37 +569,38 @@ function A_final(C, task, Wu, num_caminhoes, r)
             solucao, custo_reduzido = simplexrev(A,b,c,base)
             
             base.=base_inicial
-
+            
             #ESPPRC
             S, T, Lambda = data(n_original, L, custo_reduzido[base_inicial], C, task)
-            display(T)
-            display(L)
-            display(C)
-            display(S)
+            # display(T)
+            # display(L)
+            # display(C)
+            # display(S)
             rotulos, melhor = ESPPRC(S, T, L, W, Lambda, n_original)
-            for i in rotulos[end]
-                println(i)
-            end
-            println()
+            #println("ESPPRC devolveu")
+            #for i in rotulos[end]
+             #   println("\t$i")
+            #end
+            #println()
 
             eh_otima=true
             # Encontrar todos os lambdas com C < 0
             lambdas_negativos = [lambda for lambda in rotulos[end] if lambda.C < 0]
 
             if !isempty(lambdas_negativos)
-            eh_otima = false
+                eh_otima = false
 
-            valores_coluna = [lambda.V[1:end-1] for lambda in lambdas_negativos]
-            valores_coluna = [map(x -> isinf(x) ? 0.0 : 1.0, v) for v in valores_coluna]
+                valores_coluna = [lambda.V[1:end-1] for lambda in lambdas_negativos]
+                valores_coluna = [map(x -> isinf(x) ? 0.0 : 1.0, v) for v in valores_coluna]
 
-            # Adiciona só se a coluna for nova
-            for nova_coluna in valores_coluna
-                if all(!all(A[:, j] .== nova_coluna) for j in 1:size(A, 2))
-                A = hcat(A, nova_coluna)
+                # Adiciona a coluna 
+                for nova_coluna in valores_coluna
+                #     if all(!all(A[:, j] .== nova_coluna) for j in 1:size(A, 2))
+                    A = hcat(A, nova_coluna)
+                #     end
                 end
-            end
 
-            display(A)
+                #display(A)
             end
 
         end 
@@ -608,74 +618,3 @@ function rota_da_solucao(solucao, A, g)
     
     return  colunas_ativas
 end
-
-# Criando dados para a pequena instância
-
-# matriz de distância C (entre locais de entrega)
-
-r = 5 # número de tarefas originais (não contendo tarefas artificiais)
-
-n = r # numero de tarefas considerando o ponto de saida e de chegada (tarefas artificiais)
-
-num_caminhoes = 2 # numero de caminhoes 
-
-task = Array{Int64}(undef, r, 2) # o que cada tarefa faz 
-
-task[1,:] = [1, 2]
-
-task[2,:] = [2, 3]
-
-task[3,:] = [3, 4]
-
-task[4,:] = [4, 1]
-
-task[5,:] = [1, 3]
-
-m = maximum(task) # número de sites 
-
-C = Array{Float64}(undef, m, m) # a matriz C representa a distancia entre as cidades
-
-for i in 1:m
-
-    C[i,i] = 0.0
-
-end
-
-C[1,2] = 2 
-
-C[1,3] = 6
-
-C[1,4] = 7
-
-C[2,3] = 4
-
-C[2,4] = 9
-
-C[3,4] = 5
-
-for i in 0:m-1
-
-    for j in 0:m-1
-
-        C[m-i,m-j] = C[m-j,m-i]
-
-    end
-
-end
-
-
-Wu = Array{Float64}(undef, n, 2) # matriz que representa o tempo da tarefa
-
-Wu[1,:] = [2.0, 5.0]
-
-Wu[2,:] = [0, 4.0]
-
-Wu[3,:] = [0, 9.0]
-
-Wu[4,:] = [0, 18.0]
-
-Wu[5, :] = [0,11.0]
-
-A, solucao, g = A_final(C, task, Wu, num_caminhoes, r)
-
-rota_da_solucao(solucao, A, g)
