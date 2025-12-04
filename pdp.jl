@@ -74,7 +74,10 @@ function ESPPRC(S, T, L, W, Λ, n)
     
     j = 1
     
-    #println("ESPPRC: L=$L")
+    println("ESPPRC: L=$L")
+
+    println("\tS = ", S)
+    println("\tT = ", T)
 
     E = zeros(n)
 
@@ -482,7 +485,7 @@ function data(n, L, dual, C, task)
         for j in i + 1:n - 1
 
             S[i,j]  = - 1 - dual[j]
-            S[j, i] = - 1 - dual[j]
+            S[j, i] = - 1 - dual[i]
 
         end
 
@@ -512,12 +515,12 @@ function A_final(C, task, Wu, num_caminhoes, r; MAXIT=10)
     rotulos = [[Label(-1.0, [0.0], [0])]]
 
     L = maximum(Wu[:, 2]) # correspondendo ao limite superior para o recurso de tempo
-    display(L)
-    display(C)
+    #display(L)
+    #display(C)
     println("matriz task")
-    display(task)
+    #display(task)
     println("matriz Wu")
-    display(Wu)
+    #display(Wu)
     #L = maximum(Wu[:, 2]) # correspondendo ao limite superior para o recurso de tempo
 
     n = r + 2 #criando varariavel artificial
@@ -527,7 +530,7 @@ function A_final(C, task, Wu, num_caminhoes, r; MAXIT=10)
     W[2:end-1,:] .= Wu
     W[end, :] = [0, L]
     println("matriz W")
-    display(W)
+    #display(W)
     #matriz A
     g = r + 1
     K = Matrix{Float64}(I, g, g)  # matriz identidade g x g
@@ -581,7 +584,13 @@ function A_final(C, task, Wu, num_caminhoes, r; MAXIT=10)
         base.=base_inicial
         
         #ESPPRC
-        S, T, Lambda = data(n_original, L, custo_reduzido[base_inicial], C, task)
+
+        var_dual = custo_reduzido[base_inicial]
+
+        println("Custo arestas:\n\tλ0 = ", var_dual[1])
+        println("\tλ = ", var_dual[2:end])
+
+        S, T, Lambda = data(n_original, L, var_dual, C, task)
         # display(T)
         # display(L)
         # display(C)
