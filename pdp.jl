@@ -328,7 +328,7 @@ function simplexrev(A,b,c,base)
     (m,n)=size(A) # dimensões da matriz do problema
     solucao=vec(zeros(n)) # criando um vetor com zeros para receber a solução
 
-    while k<30
+    while k<1000
 
         B=A[:,base] # obtendo a matriz base
 
